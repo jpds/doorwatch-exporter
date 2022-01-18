@@ -16,9 +16,10 @@
 // limitations under the License.
 //
 
-use prometheus_exporter::prometheus::register_counter;
+use prometheus_exporter::prometheus::{register_counter, register_gauge};
 use rust_gpiozero::input_devices::DigitalInputDevice;
 use std::net::SocketAddr;
+use std::time::{SystemTime, UNIX_EPOCH};
 use structopt::StructOpt;
 
 #[derive(Debug, StructOpt)]
@@ -48,16 +49,46 @@ fn main() {
 
     println!("Starting doorwatch-exporter server at {}", addr);
 
-    let door_opened_seconds_metric = register_counter!(
-        "door_opened_seconds_total",
+    let doorwatch_gpio_pin_metric = register_gauge!(
+        "doorwatch_gpio_pin",
+        "Number of GPIO PIN monitored by doorwatch"
+    )
+    .expect("Unable to create gauge doorwatch_gpio_pin");
+    let doorwatch_last_observed_opening_timestamp_metric = register_gauge!(
+        "doorwatch_last_observed_opening_timestamp_seconds",
+        "Timestamp in seconds when doorwatch last observed a door opening"
+    )
+    .expect("Unable to create gauge doorwatch_last_observed_opening_seconds");
+    let doorwatch_last_poll_timestamp_metric = register_gauge!(
+        "doorwatch_last_poll_timestamp_seconds",
+        "Timestamp in seconds when doorwatch last polled GPIO"
+    )
+    .expect("Unable to create gauge doorwatch_last_poll_timestamp_seconds");
+    let doorwatch_opened_seconds_metric = register_counter!(
+        "doorwatch_opened_seconds_total",
         "Number of seconds door is detected to be opened"
     )
     .expect("Unable to create counter door_opened_seconds_total");
+    let doorwatch_poll_interval_metric = register_gauge!(
+        "doorwatch_poll_interval_seconds",
+        "Number of seconds doorwatch is set to poll at"
+    )
+    .expect("Unable to create gauge doorwatch_poll_interval_seconds");
+
+    doorwatch_gpio_pin_metric.set(opt.gpio_pin as f64);
+    doorwatch_poll_interval_metric.set(opt.poll_interval as f64 / 1000.0);
 
     loop {
+        let now_timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("Time went backwards");
+
         if !device.value() {
-            door_opened_seconds_metric.inc_by(opt.poll_interval as f64 / 1000.0);
+            doorwatch_opened_seconds_metric.inc_by(opt.poll_interval as f64 / 1000.0);
+            doorwatch_last_observed_opening_timestamp_metric.set(now_timestamp.as_secs() as f64);
         }
+
+        doorwatch_last_poll_timestamp_metric.set(now_timestamp.as_secs() as f64);
 
         let _guard = exporter.wait_duration(std::time::Duration::from_millis(opt.poll_interval));
     }
