@@ -1,0 +1,12 @@
+[package]
+name = "doorwatch-exporter"
+version = "0.1.0"
+authors = ["Jonathan Davies <jd@upthedownstair.com>"]
+edition = "2018"
+license = "Apache-2.0"
+
+[dependencies]
+prometheus = { version = "0.13.0", features = ["process"] }
+prometheus_exporter = "0.8.2"
+rust_gpiozero = "0.2.1"
+structopt = "0.3.25"
