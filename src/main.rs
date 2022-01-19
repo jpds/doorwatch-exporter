@@ -16,7 +16,7 @@
 // limitations under the License.
 //
 
-use prometheus_exporter::prometheus::{register_counter, register_gauge};
+use prometheus_exporter::prometheus::{register_counter, register_int_gauge, register_gauge};
 use rust_gpiozero::input_devices::DigitalInputDevice;
 use std::net::SocketAddr;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -54,6 +54,11 @@ fn main() {
         "Number of GPIO PIN monitored by doorwatch"
     )
     .expect("Unable to create gauge doorwatch_gpio_pin");
+    let doorwatch_gpio_value_metric = register_int_gauge!(
+        "doorwatch_gpio_value",
+        "Value of GPIO PIN monitored by doorwatch"
+    )
+    .expect("Unable to create gauge doorwatch_gpio_value");
     let doorwatch_last_observed_opening_timestamp_metric = register_gauge!(
         "doorwatch_last_observed_opening_timestamp_seconds",
         "Timestamp in seconds when doorwatch last observed a door opening"
@@ -84,8 +89,11 @@ fn main() {
             .expect("Time went backwards");
 
         if !device.value() {
+            doorwatch_gpio_value_metric.set(0);
             doorwatch_opened_seconds_metric.inc_by(opt.poll_interval as f64 / 1000.0);
             doorwatch_last_observed_opening_timestamp_metric.set(now_timestamp.as_secs() as f64);
+        } else {
+            doorwatch_gpio_value_metric.set(1);
         }
 
         doorwatch_last_poll_timestamp_metric.set(now_timestamp.as_secs() as f64);
