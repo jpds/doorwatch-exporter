@@ -91,12 +91,12 @@ fn main() {
         if !device.value() {
             doorwatch_gpio_value_metric.set(0);
             doorwatch_opened_seconds_metric.inc_by(opt.poll_interval as f64 / 1000.0);
-            doorwatch_last_observed_opening_timestamp_metric.set(now_timestamp.as_secs() as f64);
+            doorwatch_last_observed_opening_timestamp_metric.set(now_timestamp.as_millis() as f64 / 1000.0);
         } else {
             doorwatch_gpio_value_metric.set(1);
         }
 
-        doorwatch_last_poll_timestamp_metric.set(now_timestamp.as_secs() as f64);
+        doorwatch_last_poll_timestamp_metric.set(now_timestamp.as_millis() as f64 / 1000.0);
 
         let _guard = exporter.wait_duration(std::time::Duration::from_millis(opt.poll_interval));
     }
